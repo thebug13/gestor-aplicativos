@@ -1,0 +1,5 @@
+# Local data file may contain old private credentials. Do not publish it.
+mis-aplicativos-datos.json
+*.local.json
+.env
+.env.*
