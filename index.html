@@ -92,6 +92,19 @@
       <label>Enlace
         <input id="field-url" type="url" inputmode="url" maxlength="2000" placeholder="https://" required>
       </label>
+      <label>Imagen del aplicativo (opcional)
+        <input id="field-image" type="file" accept="image/png,image/jpeg,image/webp">
+      </label>
+      <div class="image-picker">
+        <div class="image-preview" aria-label="Vista previa de la imagen">
+          <img id="image-preview" alt="Vista previa" hidden>
+          <span id="image-fallback">Sin imagen</span>
+        </div>
+        <div class="image-copy">
+          <p class="muted">PNG, JPG o WEBP. Máximo 2 MB.</p>
+          <button id="remove-image" class="ghost" type="button" hidden>Quitar imagen</button>
+        </div>
+      </div>
       <p id="form-error" class="form-error" role="alert"></p>
       <div class="dialog-actions">
         <button id="form-cancel" class="ghost" type="button">Cancelar</button>
