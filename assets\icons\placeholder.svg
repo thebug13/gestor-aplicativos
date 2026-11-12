@@ -1,6 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Sin logo">
-  <rect width="64" height="64" rx="16" fill="#10141a"/>
-  <rect x="8" y="8" width="48" height="48" rx="12" fill="none" stroke="#3a3428" stroke-width="2"/>
-  <path d="M22 40l6-7 5 5 4-4 7 8" fill="none" stroke="#e0b15a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-  <circle cx="26" cy="26" r="3" fill="#8fb9a8"/>
-</svg>
