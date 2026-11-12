@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Mis enlaces</title>
+  <link rel="icon" href="assets/icons/logo.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <noscript class="noscript"><p>Activa JavaScript para usar este gestor.</p></noscript>
+
+  <section id="boot-error" class="boot-error" hidden>
+    <h1>No se pudo iniciar</h1>
+    <p id="boot-error-text"></p>
+  </section>
+
+  <section id="login-screen" class="lock-screen" hidden>
+    <div class="lock-card">
+      <div class="brand">
+        <img src="assets/icons/logo.svg" alt="">
+        <div><p class="eyebrow">Enlaces privados</p><h1>Mis aplicativos</h1></div>
+      </div>
+      <p class="lead">Inicia con GitHub para ver y guardar tus enlaces en línea. No guardamos credenciales de tus aplicativos.</p>
+      <button id="github-login" class="primary" type="button">Continuar con GitHub</button>
+      <p id="login-error" class="form-error" role="alert"></p>
+    </div>
+  </section>
+
+  <div id="shell" class="shell" hidden>
+    <aside id="sidebar" class="sidebar">
+      <div class="sidebar-brand">
+        <img src="assets/icons/logo.svg" alt="">
+        <div><strong>Mis enlaces</strong><span>Privados en línea</span></div>
+      </div>
+      <nav aria-label="Secciones">
+        <button id="nav-apps" class="nav-button" type="button" data-view="apps">Enlaces</button>
+        <button id="nav-settings" class="nav-button" type="button" data-view="settings">Ajustes</button>
+      </nav>
+      <div class="count-box"><strong id="app-count">0</strong><small>enlaces guardados</small></div>
+      <button id="logout-button" class="ghost sidebar-lock" type="button">Salir de GitHub</button>
+    </aside>
+    <div id="sidebar-backdrop" class="backdrop" hidden></div>
+
+    <main class="main">
+      <header class="toolbar">
+        <button id="menu-button" class="icon-button menu-button" type="button" aria-label="Abrir menú">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+        </button>
+        <div id="search-wrap" class="search">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+          <input id="search-input" type="search" placeholder="Buscar enlace" aria-label="Buscar enlace">
+        </div>
+        <select id="sort-select" class="sort" aria-label="Ordenar enlaces">
+          <option value="name-asc">Nombre (A-Z)</option>
+          <option value="name-desc">Nombre (Z-A)</option>
+          <option value="updated-desc">Última modificación</option>
+        </select>
+        <button id="add-button" class="primary" type="button">Agregar enlace</button>
+      </header>
+
+      <section id="apps-view">
+        <p id="result-count" class="result-count"></p>
+        <div id="app-grid" class="grid"></div>
+      </section>
+
+      <section id="settings-view" class="settings-grid" hidden>
+        <article class="panel">
+          <h2>Importar y exportar</h2>
+          <p class="setting-copy">Las copias contienen únicamente el nombre y el enlace de cada aplicativo.</p>
+          <div class="inline-actions">
+            <button id="export-button" class="ghost" type="button">Exportar JSON</button>
+            <button id="import-button" class="ghost" type="button">Importar enlaces</button>
+          </div>
+          <input id="import-file" type="file" accept="application/json,.json" hidden>
+        </article>
+        <article class="warning">El acceso se controla con tu cuenta de GitHub. Cada usuario autenticado solo puede leer y cambiar sus propios enlaces.</article>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="app-dialog" aria-labelledby="dialog-title">
+    <form id="app-form" class="dialog-body" novalidate>
+      <div class="dialog-head">
+        <h2 id="dialog-title">Agregar enlace</h2>
+        <button id="dialog-close" class="ghost" type="button">Cerrar</button>
+      </div>
+      <label>Nombre
+        <input id="field-name" type="text" maxlength="100" required>
+      </label>
+      <label>Enlace
+        <input id="field-url" type="url" inputmode="url" maxlength="2000" placeholder="https://" required>
+      </label>
+      <p id="form-error" class="form-error" role="alert"></p>
+      <div class="dialog-actions">
+        <button id="form-cancel" class="ghost" type="button">Cancelar</button>
+        <button id="form-save" class="primary" type="submit">Guardar enlace</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="confirm-dialog" aria-labelledby="confirm-title">
+    <form method="dialog" class="dialog-body">
+      <h2 id="confirm-title">Confirmar</h2>
+      <p id="confirm-message"></p>
+      <div class="dialog-actions">
+        <button class="ghost" value="cancel">Cancelar</button>
+        <button id="confirm-accept" class="danger" value="ok">Eliminar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toasts" class="toasts" aria-live="polite"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/config.js"></script>
+  <script src="js/database.js"></script>
+  <script src="js/clipboard.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
