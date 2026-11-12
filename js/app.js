@@ -17,11 +17,12 @@
     exportButton: document.getElementById("export-button"), importButton: document.getElementById("import-button"), importFile: document.getElementById("import-file"),
     dialog: document.getElementById("app-dialog"), dialogTitle: document.getElementById("dialog-title"), appForm: document.getElementById("app-form"),
     dialogClose: document.getElementById("dialog-close"), fieldName: document.getElementById("field-name"), fieldUrl: document.getElementById("field-url"),
+    fieldImage: document.getElementById("field-image"), imagePreview: document.getElementById("image-preview"), imageFallback: document.getElementById("image-fallback"), removeImage: document.getElementById("remove-image"),
     formError: document.getElementById("form-error"), formCancel: document.getElementById("form-cancel"), formSave: document.getElementById("form-save"),
     confirmDialog: document.getElementById("confirm-dialog"), confirmTitle: document.getElementById("confirm-title"), confirmMessage: document.getElementById("confirm-message"),
     confirmAccept: document.getElementById("confirm-accept"), toasts: document.getElementById("toasts")
   };
-  const state = { session: null, apps: [], view: "apps", editingId: null };
+  const state = { session: null, apps: [], view: "apps", editingId: null, selectedImage: null, removeImage: false, previewUrl: null };
 
   document.addEventListener("DOMContentLoaded", init);
 
@@ -49,6 +50,8 @@
     ui.grid.addEventListener("click", onGridClick);
     ui.dialogClose.addEventListener("click", closeForm);
     ui.formCancel.addEventListener("click", closeForm);
+    ui.fieldImage.addEventListener("change", onImageSelected);
+    ui.removeImage.addEventListener("click", clearImage);
     ui.appForm.addEventListener("submit", onSave);
     ui.exportButton.addEventListener("click", exportLinks);
     ui.importButton.addEventListener("click", function () { ui.importFile.click(); });
@@ -100,6 +103,8 @@
       id: typeof value.id === "string" && value.id ? value.id : createId(),
       name: String(value.name || "").trim(),
       url: normalizeUrl(value.url || ""),
+      imagePath: value.imagePath || value.image_path || null,
+      imageUrl: value.imageUrl || value.image_url || null,
       createdAt: value.createdAt || value.created_at || Date.now(),
       updatedAt: value.updatedAt || value.updated_at || Date.now()
     };
@@ -158,11 +163,23 @@
 
   function renderCard(app) {
     const card = document.createElement("article"); card.className = "card link-card"; card.dataset.id = app.id;
-    const title = document.createElement("h2"); title.textContent = app.name;
-    const link = document.createElement("a"); link.className = "saved-link"; link.href = app.url; link.target = "_blank"; link.rel = "noopener noreferrer"; link.textContent = app.url;
+    const head = document.createElement("div"); head.className = "card-head";
+    const art = document.createElement("div"); art.className = "app-art";
+    const fallback = document.createElement("span"); fallback.className = "app-art-fallback"; fallback.textContent = app.name.slice(0, 1).toLocaleUpperCase("es");
+    art.appendChild(fallback);
+    if (app.imageUrl) {
+      const image = document.createElement("img"); image.src = app.imageUrl; image.alt = ""; image.loading = "lazy";
+      image.addEventListener("load", function () { fallback.hidden = true; });
+      image.addEventListener("error", function () { image.remove(); fallback.hidden = false; });
+      art.appendChild(image);
+    }
+    const details = document.createElement("div"); details.className = "app-details";
+    const title = document.createElement("a"); title.className = "saved-title"; title.href = app.url; title.target = "_blank"; title.rel = "noopener noreferrer"; title.textContent = app.name;
+    const domain = document.createElement("span"); domain.className = "saved-domain"; domain.textContent = displayHost(app.url);
+    details.append(title, domain); head.append(art, details);
     const actions = document.createElement("div"); actions.className = "actions";
     actions.append(actionButton("open", "Abrir", "open"), actionButton("copy", "Copiar enlace", "copy"), actionButton("edit", "Editar", "edit"), actionButton("delete", "Eliminar", "trash", true));
-    card.append(title, link, actions);
+    card.append(head, actions);
     return card;
   }
 
@@ -190,20 +207,54 @@
   async function removeApp(app) {
     if (!await askConfirm("Eliminar enlace", "¿Eliminar «" + app.name + "»?", "Eliminar")) return;
     try {
-      await Database.deleteApp(app.id);
+      await Database.deleteApp(app.id, app.imagePath);
       state.apps = state.apps.filter(function (item) { return item.id !== app.id; }); render(); toast("Enlace eliminado.");
     } catch (_error) { toast("No se pudo eliminar el enlace en línea."); }
   }
 
   function openForm(app) {
     state.editingId = app ? app.id : null;
+    state.selectedImage = null; state.removeImage = false; releasePreview();
     ui.appForm.reset(); ui.formError.textContent = "";
     ui.dialogTitle.textContent = app ? "Editar enlace" : "Agregar enlace";
     if (app) { ui.fieldName.value = app.name; ui.fieldUrl.value = app.url; }
+    setImagePreview(app ? app.imageUrl : null, Boolean(app && app.imagePath));
     if (!ui.dialog.open) ui.dialog.showModal(); ui.fieldName.focus();
   }
 
-  function closeForm() { if (ui.dialog.open) ui.dialog.close(); state.editingId = null; }
+  function closeForm() {
+    if (ui.dialog.open) ui.dialog.close(); state.editingId = null; state.selectedImage = null; state.removeImage = false; releasePreview();
+    if (ui.imagePreview) { ui.imagePreview.removeAttribute("src"); ui.imagePreview.hidden = true; ui.imageFallback.hidden = false; ui.removeImage.hidden = true; }
+  }
+
+  function onImageSelected() {
+    const file = ui.fieldImage.files && ui.fieldImage.files[0]; ui.formError.textContent = "";
+    if (!file) return;
+    if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
+      ui.fieldImage.value = ""; ui.formError.textContent = "Elige una imagen PNG, JPG o WEBP."; return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      ui.fieldImage.value = ""; ui.formError.textContent = "La imagen debe pesar máximo 2 MB."; return;
+    }
+    state.selectedImage = file; state.removeImage = false;
+    releasePreview(); state.previewUrl = URL.createObjectURL(file); setImagePreview(state.previewUrl, true);
+  }
+
+  function clearImage() {
+    const current = state.editingId && state.apps.find(function (item) { return item.id === state.editingId; });
+    state.selectedImage = null; state.removeImage = Boolean(current && current.imagePath); ui.fieldImage.value = "";
+    releasePreview(); setImagePreview(null, false);
+  }
+
+  function setImagePreview(src, canRemove) {
+    ui.imagePreview.onload = function () { ui.imagePreview.hidden = false; ui.imageFallback.hidden = true; };
+    ui.imagePreview.onerror = function () { ui.imagePreview.hidden = true; ui.imageFallback.hidden = false; };
+    if (src) { ui.imagePreview.src = src; ui.imagePreview.hidden = false; ui.imageFallback.hidden = true; }
+    else { ui.imagePreview.removeAttribute("src"); ui.imagePreview.hidden = true; ui.imageFallback.hidden = false; }
+    ui.removeImage.hidden = !canRemove;
+  }
+
+  function releasePreview() { if (state.previewUrl) URL.revokeObjectURL(state.previewUrl); state.previewUrl = null; }
 
   async function onSave(event) {
     event.preventDefault();
@@ -211,10 +262,10 @@
     if (!name) { ui.formError.textContent = "Escribe un nombre."; return; }
     if (!url) { ui.formError.textContent = "Escribe un enlace válido que empiece con http o https."; return; }
     const current = state.editingId ? state.apps.find(function (item) { return item.id === state.editingId; }) : null;
-    const app = { id: current ? current.id : createId(), name: name, url: url, createdAt: current ? current.createdAt : new Date().toISOString(), updatedAt: new Date().toISOString() };
+    const app = { id: current ? current.id : createId(), name: name, url: url, imagePath: current ? current.imagePath : null, createdAt: current ? current.createdAt : new Date().toISOString(), updatedAt: new Date().toISOString() };
     ui.formSave.disabled = true;
     try {
-      const saved = sanitizeLink(await Database.putApp(app));
+      const saved = sanitizeLink(await Database.putApp(app, state.selectedImage, state.removeImage));
       const index = state.apps.findIndex(function (item) { return item.id === saved.id; });
       if (index < 0) state.apps.push(saved); else state.apps[index] = saved;
       closeForm(); render(); toast("Enlace guardado en línea.");
@@ -256,6 +307,10 @@
   function normalizeUrl(value) {
     try { const parsed = new URL(String(value || "").trim()); return parsed.protocol === "http:" || parsed.protocol === "https:" ? parsed.href : ""; }
     catch (_error) { return ""; }
+  }
+  function displayHost(value) {
+    try { return new URL(value).hostname.replace(/^www\./i, ""); }
+    catch (_error) { return value; }
   }
   function fold(value) { return String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase(); }
 })();
