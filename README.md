@@ -1,54 +1,50 @@
 # Mis aplicativos
 
-Aplicación web para guardar y abrir enlaces de tus aplicativos. La app almacena en Supabase únicamente el nombre y la URL de cada enlace; no guarda usuarios ni contraseñas de los aplicativos.
+Aplicación web para organizar enlaces de tus aplicativos. Guarda el nombre y la URL; permite agregar una imagen opcional para identificar cada enlace. No almacena usuarios ni contraseñas de los aplicativos.
 
-## Cómo funciona
+## Cómo funciona y dónde se guardan los datos
 
-- **GitHub Pages** sirve la interfaz web. El repositorio y la página son públicos.
-- **GitHub OAuth** permite iniciar sesión en la app con una cuenta GitHub.
-- **Supabase Auth** administra la sesión y **Row Level Security (RLS)** limita las filas para que cada persona autenticada solo pueda consultar y modificar sus propios enlaces.
-- Cualquier persona puede llegar a la página pública de inicio de sesión, pero no puede leer tus filas de Supabase con su cuenta.
+- **GitHub Pages** publica la interfaz web. El repositorio y la página son públicos.
+- **GitHub OAuth** permite iniciar sesión con GitHub.
+- **Supabase** guarda los enlaces y las imágenes en la nube.
+- Las tablas y el bucket de imágenes usan políticas **Row Level Security (RLS)**: cada usuario autenticado solo puede consultar y modificar sus propios enlaces e imágenes.
+- Las tarjetas muestran el nombre y el dominio corto. La URL completa se abre al pulsar el nombre o **Abrir**; no se muestra larga en la tarjeta.
 
-> La clave Publishable de Supabase se incluye en el JavaScript público del sitio. Eso es normal para una aplicación web estática: la protección de los datos depende de RLS. Nunca publiques una clave `sb_secret_`, `service_role` ni el Client Secret de GitHub.
+La clave **Publishable** de Supabase y la URL del proyecto son visibles en el JavaScript y el navegador. Eso es normal para un sitio estático: la clave está diseñada para ser pública. La privacidad depende de las políticas RLS. **Nunca** pongas aquí una clave `sb_secret_`, `service_role` ni el Client Secret de GitHub.
 
-## Configuración inicial de Supabase
+## Configuración de Supabase
 
-### 1. Crear un proyecto
+### 1. Crear el proyecto y la tabla
 
-En [Supabase Dashboard](https://supabase.com/dashboard), crea un proyecto. Guarda la contraseña de base de datos en un lugar seguro; no la necesitas para configurar la app.
+1. En [Supabase Dashboard](https://supabase.com/dashboard), crea un proyecto.
+2. Abre **SQL Editor** y crea una consulta nueva.
+3. Copia el contenido completo de [`supabase/schema.sql`](supabase/schema.sql), pégalo y pulsa **Run**.
+4. **Success. No rows returned** es el resultado esperado: el SQL crea tablas, permisos y políticas, no registros.
 
-### 2. Crear la tabla y activar RLS
+El esquema es seguro para volver a ejecutar. Si ya habías configurado la app, vuelve a ejecutar el esquema actualizado para añadir la columna de imagen, el bucket privado y sus políticas; conserva los enlaces existentes.
 
-1. Abre el **SQL Editor** del proyecto y crea una consulta nueva.
-2. Copia el contenido completo de [`supabase/schema.sql`](supabase/schema.sql), pégalo y pulsa **Run**.
-3. El mensaje **Success. No rows returned** es normal: el script crea la tabla, permisos, índice y políticas, no devuelve registros.
+### 2. Configurar GitHub OAuth
 
-La tabla `public.app_links` contiene `user_id`, `name` y `url` además de identificadores y fechas. Las políticas RLS comprueban que `user_id` coincida con el usuario de la sesión.
-
-### 3. Crear una OAuth App en GitHub
-
-1. En Supabase, ve a **Authentication → Sign In / Providers → GitHub** y copia el **Callback URL** que aparece allí. Su formato es `https://<referencia-del-proyecto>.supabase.co/auth/v1/callback`.
+1. En Supabase, abre **Authentication → Sign In / Providers → GitHub** y copia el **Callback URL**. Su formato es `https://<referencia-del-proyecto>.supabase.co/auth/v1/callback`.
 2. En GitHub, abre [Developer settings](https://github.com/settings/developers) de tu cuenta personal y entra a **OAuth Apps → New OAuth App** (o **Register a new application**).
 3. Completa:
    - **Application name:** Mis aplicativos
    - **Homepage URL:** `https://thebug13.github.io/gestor-aplicativos/`
-   - **Redirect URI / Authorization callback URL:** pega el Callback URL copiado de Supabase. No uses aquí la URL de GitHub Pages.
-4. Registra la app. Copia su **Client ID** y genera un **Client secret**.
-5. Regresa a Supabase, habilita el proveedor **GitHub**, pega allí el Client ID y Client secret y guarda. El Client secret se configura solo en Supabase.
+   - **Redirect URI / Authorization callback URL:** pega el Callback URL copiado de Supabase. No pongas aquí la URL de GitHub Pages.
+4. Registra la aplicación y copia su **Client ID**. Genera un **Client secret**.
+5. En Supabase, habilita el proveedor GitHub, pega allí el Client ID y Client secret y guarda. No publiques el Client secret ni lo pongas en archivos del sitio.
 
-### 4. Permitir la URL de la app
+### 3. Configurar las URLs de autenticación
 
 En Supabase, abre **Authentication → URL Configuration**:
 
-- Configura **Site URL** como `https://thebug13.github.io/gestor-aplicativos/`.
-- Agrega esa misma dirección exacta a **Redirect URLs**, incluida la barra final.
+- **Site URL:** `https://thebug13.github.io/gestor-aplicativos/`
+- **Redirect URLs:** agrega esa misma dirección exacta, incluida la barra final.
 
-La app devuelve al usuario a la página de GitHub Pages después de iniciar sesión.
+### 4. Configurar la URL y clave Publishable
 
-### 5. Añadir la URL y Publishable key del proyecto
-
-1. En Supabase, pulsa **Connect** y copia **Project URL** y **Publishable key**. También puedes copiar la clave desde **Settings → API Keys → Publishable key**.
-2. En GitHub, abre [`js/config.js`](js/config.js), selecciona **Edit** y reemplaza los valores de ejemplo:
+1. En Supabase, pulsa **Connect** y copia **Project URL** y **Publishable key**. También puedes copiar la clave en **Settings → API Keys → Publishable key**.
+2. En GitHub, abre [`js/config.js`](js/config.js), pulsa **Edit** y reemplaza los valores de ejemplo:
 
 ```js
 window.GESTOR_CONFIG = {
@@ -57,34 +53,44 @@ window.GESTOR_CONFIG = {
 };
 ```
 
-El nombre de propiedad `supabaseAnonKey` debe conservarse, aunque pegues una clave nueva que empiece por `sb_publishable_`. Pega la URL completa y la clave completa, sin espacios adicionales. No pegues `sb_secret_`, `service_role` ni el Client secret de GitHub aquí.
+Conserva el nombre `supabaseAnonKey`, aunque la clave nueva comience con `sb_publishable_`. Pega los valores completos, sin espacios, y guarda con **Commit changes**. La Publishable key es pública por diseño; la secret key no.
 
-3. Guarda con **Commit changes**. La clave Publishable se verá en el código público del repositorio; está diseñada para usarse en el navegador. RLS debe permanecer activo para proteger la tabla.
-
-## Publicar con GitHub Pages
-
-El repositorio ya incluye [`.github/workflows/pages.yml`](.github/workflows/pages.yml). Para activar la publicación:
+### 5. Activar GitHub Pages
 
 1. En el repositorio, abre **Settings → Pages**.
 2. En **Build and deployment → Source**, selecciona **GitHub Actions**.
-3. Abre la pestaña **Actions** y espera a que la ejecución más reciente termine en verde.
+3. Abre **Actions** y espera que la ejecución más reciente termine en verde.
 4. La página estará en [https://thebug13.github.io/gestor-aplicativos/](https://thebug13.github.io/gestor-aplicativos/).
 
-El flujo se inicia con cada push a `main` o `master`. El artefacto de Pages usa un nombre diferente para cada ejecución e intento, para evitar conflictos al reintentar un despliegue. Si un intento antiguo falla por encontrar artefactos duplicados, no lo vuelvas a ejecutar: usa la ejecución nueva que se inicia tras un cambio.
+El flujo se ejecuta cuando hay cambios en `main` o `master`. Cada ejecución e intento usa un nombre distinto para su artefacto de Pages. Si falla un intento antiguo por artefactos duplicados, abre la ejecución nueva en **Actions**; no repitas el intento antiguo.
 
-## Comprobar que funciona
+## Usar imágenes en los enlaces
 
-1. Abre la URL de GitHub Pages y pulsa **Continuar con GitHub**.
-2. Autoriza la aplicación si GitHub te lo solicita.
-3. Agrega un enlace de prueba, recarga la página y confirma que siga apareciendo.
-4. Elimina el enlace de prueba cuando termines.
+1. Inicia sesión y pulsa **Agregar enlace** o **Editar**.
+2. Selecciona una imagen PNG, JPG o WEBP de hasta **2 MB**.
+3. Guarda. La imagen se sube a un bucket privado de Supabase dentro de la carpeta del usuario y se muestra en la tarjeta.
+4. Para quitarla, edita el enlace y pulsa **Quitar imagen**. Al borrar un enlace también se elimina su imagen.
 
-Si el login falla, revisa que el Callback URL de GitHub sea el que muestra Supabase y que la URL de Pages esté en **Redirect URLs**. Si la página muestra que falta configurar `js/config.js`, verifica que reemplazaste ambos valores y que el cambio ya se desplegó.
+Si esta app ya estaba conectada antes de agregar la función de imágenes, vuelve a ejecutar el SQL actualizado de [`supabase/schema.sql`](supabase/schema.sql) para crear el bucket, la columna `image_path` y las políticas de Storage. Las URLs firmadas de las imágenes duran una hora; se generan de nuevo cuando se vuelve a cargar la app.
+
+Las copias JSON de **Ajustes → Exportar JSON** incluyen nombre y URL, no los archivos de imagen. Las imágenes permanecen en Supabase.
+
+## Comprobar y solucionar problemas
+
+1. Abre la página, pulsa **Continuar con GitHub** y autoriza la aplicación si se solicita.
+2. Agrega un enlace de prueba, recarga la página y confirma que siga allí.
+3. Sube una imagen de prueba, recarga y confirma que aparezca. Elimina el enlace de prueba al terminar.
+
+- Si el login dice que la URL no está permitida, revisa **Site URL** y **Redirect URLs** en Supabase.
+- Si GitHub indica que la URL de retorno no coincide, usa exactamente el Callback URL de Supabase en la OAuth App.
+- Si aparece un error al subir imágenes, ejecuta el esquema actualizado y confirma que terminara en **Success**.
+- Si la página no carga, confirma que **Settings → Pages → Source** sea **GitHub Actions** y revisa la última ejecución en **Actions**.
+- Si la app dice que falta configurar `js/config.js`, revisa la URL y la Publishable key y espera a que termine el despliegue.
 
 ## Importar los datos anteriores
 
-El archivo local `mis-aplicativos-datos.json` está excluido por `.gitignore` y no se debe subir al repositorio. Para migrar datos, usa **Ajustes → Importar enlaces** en la app. La importación conserva solo el nombre y la URL; no importes ni guardes usuarios o contraseñas.
+El archivo local `mis-aplicativos-datos.json` está excluido por `.gitignore`; no lo subas al repositorio. Para migrar enlaces, usa **Ajustes → Importar enlaces**. La importación conserva únicamente nombre y URL, nunca usuarios ni contraseñas.
 
 ## Privacidad
 
-El repositorio y el sitio de GitHub Pages son públicos. La lista de enlaces no se almacena en GitHub: se guarda en Supabase y las políticas RLS de la tabla restringen las filas por usuario autenticado. Supabase almacena el nombre y URL de los enlaces en la nube.
+GitHub aloja el código y la página pública. Supabase almacena los nombres, las URLs y las imágenes. RLS restringe cada usuario a sus propios datos; las imágenes viven en un bucket privado y se acceden con enlaces firmados de duración limitada.
