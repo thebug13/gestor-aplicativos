@@ -289,7 +289,7 @@ input:focus, textarea:focus, select:focus {
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
   gap: 16px;
 }
 
@@ -311,8 +311,25 @@ input:focus, textarea:focus, select:focus {
 
 .card h2 { font-size: 1.12rem; letter-spacing: -0.02em; }
 
-.link-card { display: grid; gap: 12px; align-content: start; }
-.saved-link { color: var(--mint); overflow-wrap: anywhere; }
+.link-card { display: grid; gap: 16px; align-content: start; }
+.card-head { display: flex; gap: 14px; align-items: center; min-width: 0; }
+.app-art, .image-preview {
+  display: grid;
+  flex: 0 0 62px;
+  width: 62px;
+  height: 62px;
+  overflow: hidden;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 17px;
+  background: linear-gradient(145deg, rgba(224, 177, 90, 0.17), rgba(143, 185, 168, 0.09));
+}
+.app-art img, .image-preview img { width: 100%; height: 100%; padding: 8px; object-fit: contain; }
+.app-art-fallback { color: var(--accent); font-family: var(--display); font-size: 1.8rem; }
+.app-details { display: grid; gap: 3px; min-width: 0; }
+.saved-title { color: var(--text); font-size: 1.12rem; font-weight: 650; letter-spacing: -0.02em; overflow-wrap: anywhere; text-decoration: none; }
+.saved-title:hover { color: var(--accent); }
+.saved-domain { color: var(--muted); font-size: 0.86rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .actions, .dialog-actions, .inline-actions {
   display: flex;
@@ -374,6 +391,11 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.62); }
 .dialog-body { display: grid; gap: 14px; padding: 22px; }
 
 .dialog-head { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+.image-picker { display: flex; gap: 14px; align-items: center; }
+.image-preview { flex-basis: 74px; width: 74px; height: 74px; border-radius: 19px; }
+.image-preview span { color: var(--muted); font-size: 0.72rem; }
+.image-copy { display: grid; justify-items: start; gap: 8px; }
+.image-copy .muted { font-size: 0.84rem; }
 
 .toasts {
   position: fixed;
