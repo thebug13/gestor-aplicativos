@@ -1,5 +1,7 @@
 /* Supabase: datos remotos privados por usuario mediante Row Level Security. */
 (function (root) {
+  const IMAGE_BUCKET = "app-link-images";
+  const IMAGE_URL_TTL_SECONDS = 3600;
   let client = null;
   let userId = null;
 
@@ -48,21 +50,46 @@
   async function getAllApps() {
     requireUser();
     const result = await client.from("app_links")
-      .select("id,name,url,created_at,updated_at")
+      .select("id,name,url,image_path,created_at,updated_at")
       .order("name", { ascending: true });
     if (result.error) throw result.error;
-    return result.data.map(function (row) {
-      return { id: row.id, name: row.name, url: row.url, createdAt: row.created_at, updatedAt: row.updated_at };
-    });
+    return Promise.all(result.data.map(toApp));
   }
 
-  async function putApp(app) {
+  async function toApp(row) {
+    let imageUrl = null;
+    if (row.image_path) {
+      const signed = await client.storage.from(IMAGE_BUCKET).createSignedUrl(row.image_path, IMAGE_URL_TTL_SECONDS);
+      if (!signed.error && signed.data) imageUrl = signed.data.signedUrl;
+    }
+    return { id: row.id, name: row.name, url: row.url, imagePath: row.image_path || null, imageUrl: imageUrl, createdAt: row.created_at, updatedAt: row.updated_at };
+  }
+
+  async function putApp(app, imageFile, removeImage) {
     const owner = requireUser();
+    const oldPath = app.imagePath || null;
+    let imagePath = removeImage ? null : oldPath;
+    let uploadedPath = null;
+    if (imageFile) {
+      const extensions = { "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp" };
+      const extension = extensions[imageFile.type];
+      if (!extension || imageFile.size > 2 * 1024 * 1024) throw new Error("Elige PNG, JPG o WEBP de máximo 2 MB.");
+      imagePath = owner + "/" + app.id + "-" + Date.now() + "." + extension;
+      const uploaded = await client.storage.from(IMAGE_BUCKET).upload(imagePath, imageFile, {
+        cacheControl: "3600", contentType: imageFile.type, upsert: false
+      });
+      if (uploaded.error) throw uploaded.error;
+      uploadedPath = imagePath;
+    }
     const result = await client.from("app_links").upsert({
-      id: app.id, user_id: owner, name: app.name, url: app.url, updated_at: new Date().toISOString()
-    }).select("id,name,url,created_at,updated_at").single();
-    if (result.error) throw result.error;
-    return { id: result.data.id, name: result.data.name, url: result.data.url, createdAt: result.data.created_at, updatedAt: result.data.updated_at };
+      id: app.id, user_id: owner, name: app.name, url: app.url, image_path: imagePath, updated_at: new Date().toISOString()
+    }).select("id,name,url,image_path,created_at,updated_at").single();
+    if (result.error) {
+      if (uploadedPath) await client.storage.from(IMAGE_BUCKET).remove([uploadedPath]);
+      throw result.error;
+    }
+    if (oldPath && oldPath !== imagePath) await client.storage.from(IMAGE_BUCKET).remove([oldPath]);
+    return toApp(result.data);
   }
 
   async function putApps(apps) {
@@ -84,8 +111,11 @@
 
   async function deleteApp(id) {
     const owner = requireUser();
+    const existing = await client.from("app_links").select("image_path").eq("id", id).eq("user_id", owner).maybeSingle();
+    if (existing.error) throw existing.error;
     const result = await client.from("app_links").delete().eq("id", id).eq("user_id", owner);
     if (result.error) throw result.error;
+    if (existing.data && existing.data.image_path) await client.storage.from(IMAGE_BUCKET).remove([existing.data.image_path]);
   }
 
   root.Database = {
