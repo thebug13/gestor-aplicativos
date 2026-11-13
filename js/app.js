@@ -23,6 +23,7 @@
     confirmAccept: document.getElementById("confirm-accept"), toasts: document.getElementById("toasts")
   };
   const state = { session: null, apps: [], view: "apps", editingId: null, selectedImage: null, removeImage: false, previewUrl: null };
+  let attemptedSessionUserId = null;
 
   document.addEventListener("DOMContentLoaded", init);
 
@@ -64,12 +65,14 @@
     ui.boot.hidden = true;
     ui.login.hidden = signedIn;
     ui.shell.hidden = !signedIn;
-    if (!signedIn) { state.apps = []; return; }
+    if (!signedIn) { state.apps = []; attemptedSessionUserId = null; return; }
+    if (attemptedSessionUserId === session.user.id) return;
+    attemptedSessionUserId = session.user.id;
     try {
       await loadApps();
       showApp();
     } catch (error) {
-      toast("No se pudieron cargar los enlaces en línea.");
+      toast("No se pudieron cargar los enlaces: " + (error.message || "revisa la configuración de Supabase."));
     }
   }
 
@@ -314,3 +317,4 @@
   }
   function fold(value) { return String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase(); }
 })();
+
